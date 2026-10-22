@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piano pasti e spesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF1F5; --panel:#FFFFFF; --ink:#1B2733; --muted:#6B7A89; --line:#D6DEE6;
+  --accent:#1F6F8B; --accent-soft:#DCEBF1; --warn:#F2B93B; --warn-soft:#FBEFCF; --bad:#C2413A;
+  --done:#9AA7B3;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg) url('sfondo.svg') repeat; color:var(--ink); line-height:1.45;
+  padding-bottom:96px;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px}
+h1{font-size:1.9rem;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 18px}
+.view{display:none}.view.on{display:block}
+
+/* Calendario */
+.layout{display:grid;gap:20px;grid-template-columns:1fr}
+@media(min-width:900px){.layout{grid-template-columns:420px 1fr;align-items:start}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.monthbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.monthbar strong{font-size:1.15rem;text-transform:capitalize}
+.icon-btn{border:1px solid var(--line);background:var(--panel);width:38px;height:38px;border-radius:10px;font-size:1.1rem}
+.icon-btn:hover{background:var(--accent-soft)}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{font-size:.75rem;color:var(--muted);text-align:center;padding:4px 0}
+.cell{
+  aspect-ratio:1/1;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 2px 5px;
+  font-weight:600;
+}
+.cell:hover{background:var(--accent-soft)}
+.cell.out{visibility:hidden}
+.cell.today{border-color:var(--accent);border-width:2px}
+.cell.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dots{display:flex;gap:3px;height:7px}
+.dot{width:6px;height:6px;border-radius:50%}
+.d-meal{background:var(--accent)}.d-rem{background:#7A5AC8}.d-shop{background:#2E9E6B}.d-exp{background:var(--warn)}
+.cell.sel .d-meal{background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem;color:var(--muted);margin-top:12px}
+.legend span{display:flex;align-items:center;gap:5px}
+
+/* Giorno */
+.field{margin-bottom:12px}
+.field label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+textarea,input[type=text]{
+  width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;
+}
+textarea{resize:vertical;min-height:44px}
+.meals{display:grid;gap:10px;grid-template-columns:1fr}
+@media(min-width:600px){.meals{grid-template-columns:1fr 1fr}}
+.meals .field{margin:0}
+.section{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.addrow{display:flex;gap:8px;margin-bottom:8px}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 14px;font-weight:600;white-space:nowrap}
+.btn:hover{filter:brightness(1.1)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.items{list-style:none;margin:0;padding:0}
+.items li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:#F6F8FA;margin-bottom:6px}
+.items li .txt{flex:1;word-break:break-word}
+.del{border:0;background:transparent;color:var(--muted);font-size:1.2rem;line-height:1;padding:2px 6px;border-radius:6px}
+.del:hover{color:var(--bad);background:#fff}
+.exp li{background:var(--warn-soft)}
+.empty{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+.upcoming{margin-top:16px}
+.tag{font-size:.78rem;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:20px;white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:#7A5A00}
+.tag.bad{background:#F7DAD8;color:var(--bad)}
+
+/* Lista spesa */
+.check{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.items li.done .txt{text-decoration:line-through;color:var(--done)}
+.listhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 8px}
+
+/* Banner in basso */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  background:rgba(237,241,245,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);z-index:10;
+}
+.dock button{
+  border:2px solid var(--line);background:var(--panel);border-radius:14px;padding:14px 10px;
+  font-weight:800;font-size:1.05rem;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.dock button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.badge{background:var(--warn);color:var(--ink);border-radius:20px;font-size:.8rem;padding:1px 8px;font-weight:600}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Piano pasti e spesa</h1>
+  <p class="sub">Scegli un giorno, scrivi cosa mangi e cosa devi comprare. La lista della spesa si compila da sola.</p>
+
+  <!-- VISTA CALENDARIO -->
+  <section id="view-cal" class="view on">
+    <div class="layout">
+      <div>
+        <div class="panel">
+          <div class="monthbar">
+            <button class="icon-btn" id="prev" aria-label="Mese precedente">‹</button>
+            <strong id="monthLabel"></strong>
+            <button class="icon-btn" id="next" aria-label="Mese successivo">›</button>
+          </div>
+          <div class="grid" id="dow"></div>
+          <div class="grid" id="grid"></div>
+          <div class="legend">
+            <span><i class="dot d-meal"></i>Pasti</span>
+            <span><i class="dot d-rem"></i>Promemoria</span>
+            <span><i class="dot d-shop"></i>Spesa</span>
+            <span><i class="dot d-exp"></i>Scadenze</span>
+          </div>
+        </div>
+        <div class="panel upcoming">
+          <h2>Scadenze dei prossimi 7 giorni</h2>
+          <ul class="items exp" id="upcoming"></ul>
+        </div>
+      </div>
+      <div class="panel" id="dayPanel"></div>
+    </div>
+  </section>
+
+  <!-- VISTA LISTA SPESA -->
+  <section id="view-shop" class="view">
+    <div class="panel">
+      <h2>Lista della spesa completa</h2>
+      <form class="addrow" id="shopForm">
+        <input type="text" id="shopInput" placeholder="Aggiungi un prodotto" aria-label="Prodotto da aggiungere" autocomplete="off">
+        <button class="btn" type="submit">Aggiungi</button>
+      </form>
+      <ul class="items" id="shopTodo"></ul>
+      <div class="listhead">
+        <h2 style="margin:0">Già presi</h2>
+        <button class="btn ghost" id="clearDone">Svuota i presi</button>
+      </div>
+      <ul class="items" id="shopDone"></ul>
+    </div>
+  </section>
+</div>
+
+<nav class="dock" aria-label="Sezioni">
+  <button id="tab-cal" class="on">📅 Calendario</button>
+  <button id="tab-shop">🛒 Lista della spesa <span class="badge" id="badge">0</span></button>
+</nav>
+
+<script>
+const KEY = 'pianoPastiSpesa.v1';
+const MEALS = [
+  ['colazione','Colazione'],['snack1','Snack mattina'],['pranzo','Pranzo'],
+  ['snack2','Snack pomeriggio'],['cena','Cena']
+];
+let state = { days:{}, list:[] };
+try { const raw = localStorage.getItem(KEY); if (raw) state = JSON.parse(raw); } catch(e){}
+state.days = state.days || {}; state.list = state.list || [];
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const pad = n => String(n).padStart(2,'0');
+const toKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); };
+const fmtLong = k => fromKey(k).toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+const fmtShort = k => fromKey(k).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
+
+const today = new Date();
+let selected = toKey(today);
+let view = new Date(today.getFullYear(), today.getMonth(), 1);
+
+function day(k){
+  if (!state.days[k]) state.days[k] = { meals:{}, reminder:'', expiry:[] };
+  const d = state.days[k]; d.meals = d.meals || {}; d.expiry = d.expiry || [];
+  return d;
+}
+
+/* ---------- Calendario ---------- */
+function renderDow(){
+  $('#dow').innerHTML = ['L','M','M','G','V','S','D'].map(x=>`<div class="dow">${x}</div>`).join('');
+}
+function renderGrid(){
+  $('#monthLabel').textContent = view.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  const first = new Date(view.getFullYear(), view.getMonth(), 1);
+  const offset = (first.getDay()+6)%7;
+  const total = new Date(view.getFullYear(), view.getMonth()+1, 0).getDate();
+  let html = '';
+  for (let i=0;i<offset;i++) html += '<div class="cell out"></div>';
+  for (let n=1;n<=total;n++){
+    const k = toKey(new Date(view.getFullYear(), view.getMonth(), n));
+    const d = state.days[k];
+    const dots = [];
+    if (d && Object.values(d.meals||{}).some(v=>v && v.trim())) dots.push('d-meal');
+    if (d && d.reminder && d.reminder.trim()) dots.push('d-rem');
+    if (state.list.some(i=>i.date===k && !i.done)) dots.push('d-shop');
+    if (d && d.expiry && d.expiry.length) dots.push('d-exp');
+    html += `<button class="cell${k===toKey(today)?' today':''}${k===selected?' sel':''}" data-k="${k}" aria-label="${fmtLong(k)}">
+      <span>${n}</span><span class="dots">${dots.map(c=>`<i class="dot ${c}"></i>`).join('')}</span></button>`;
+  }
+  $('#grid').innerHTML = html;
+}
+function renderUpcoming(){
+  const start = toKey(today);
+  const end = toKey(new Date(today.getFullYear(), today.getMonth(), today.getDate()+7));
+  const rows = [];
+  Object.keys(state.days).sort().forEach(k=>{
+    if (k>=start && k<=end) (state.days[k].expiry||[]).forEach(e=>rows.push({k,e}));
+  });
+  $('#upcoming').innerHTML = rows.length
+    ? rows.map(r=>`<li><span class="txt">${esc(r.e.text)}</span><span class="tag warn">${k2label(r.k)}</span></li>`).join('')
+    : '<p class="empty">Niente in scadenza nei prossimi giorni.</p>';
+}
+function k2label(k){
+  if (k===toKey(today)) return 'oggi';
+  return fmtShort(k);
+}
+
+/* ---------- Pannello del giorno ---------- */
+function renderDay(){
+  const d = day(selected);
+  const shop = state.list.filter(i=>i.date===selected);
+  $('#dayPanel').innerHTML = `
+    <h2 style="font-size:1.35rem;text-transform:capitalize">${fmtLong(selected)}</h2>
+    <div class="meals">
+      ${MEALS.map(([id,label])=>`
+        <div class="field"><label for="m-${id}">${label}</label>
+        <textarea id="m-${id}" data-meal="${id}" rows="2">${esc(d.meals[id]||'')}</textarea></div>`).join('')}
+    </div>
+
+    <div class="section">
+      <div class="field"><label for="rem">Promemoria (es. scongelare il pollo)</label>
+      <textarea id="rem" rows="2">${esc(d.reminder||'')}</textarea></div>
+    </div>
+
+    <div class="section">
+      <h2>Spesa di questo giorno</h2>
+      <form class="addrow" id="dayShopForm">
+        <input type="text" id="dayShopInput" placeholder="Cosa devi comprare?" aria-label="Cosa devi comprare" autocomplete="off">
+        <button class="btn" type="submit">Aggiungi</button>
+      </form>
+      <ul class="items" id="dayShopList">
+        ${shop.map(i=>`<li class="${i.done?'done':''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done?'checked':''} aria-label="Preso">
+          <span class="txt">${esc(i.text)}</span><button class="del" data-delshop="${i.id}" aria-label="Elimina">×</button></li>`).join('')}
+      </ul>
+      ${shop.length?'':'<p class="empty">Nessun prodotto per questo giorno. Quello che scrivi finisce anche nella lista completa.</p>'}
+    </div>
+
+    <div class="section">
+      <h2>Cose che scadono</h2>
+      <form class="addrow" id="expForm">
+        <input type="text" id="expInput" placeholder="Es. yogurt, latte, mozzarella" aria-label="Cosa scade" autocomplete="off">
+        <button class="btn" type="submit">Aggiungi</button>
+      </form>
+      <ul class="items exp">
+        ${d.expiry.map(e=>`<li><span class="txt">${esc(e.text)}</span><button class="del" data-delexp="${e.id}" aria-label="Elimina">×</button></li>`).join('')}
+      </ul>
+      ${d.expiry.length?'':'<p class="empty">Nessuna scadenza segnata per questo giorno.</p>'}
+    </div>`;
+}
+
+/* ---------- Lista della spesa completa ---------- */
+function itemRow(i){
+  const tag = i.date ? `<span class="tag">${fmtShort(i.date)}</span>` : '';
+  return `<li class="${i.done?'done':''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done?'checked':''} aria-label="Preso">
+    <span class="txt">${esc(i.text)}</span>${tag}<button class="del" data-delshop="${i.id}" aria-label="Elimina">×</button></li>`;
+}
+function renderShop(){
+  const todo = state.list.filter(i=>!i.done).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
+  const done = state.list.filter(i=>i.done);
+  $('#shopTodo').innerHTML = todo.map(itemRow).join('') || '<p class="empty">Tutto preso, la lista è vuota.</p>';
+  $('#shopDone').innerHTML = done.map(itemRow).join('') || '<p class="empty">Ancora niente di spuntato.</p>';
+  $('#badge').textContent = todo.length;
+}
+
+function refreshAll(){ renderGrid(); renderUpcoming(); renderDay(); renderShop(); }
+
+/* ---------- Eventi ---------- */
+$('#prev').onclick = ()=>{ view = new Date(view.getFullYear(), view.getMonth()-1, 1); renderGrid(); };
+$('#next').onclick = ()=>{ view = new Date(view.getFullYear(), view.getMonth()+1, 1); renderGrid(); };
+$('#grid').addEventListener('click', e=>{
+  const b = e.target.closest('[data-k]'); if(!b) return;
+  selected = b.dataset.k; renderGrid(); renderDay();
+});
+
+$('#dayPanel').addEventListener('input', e=>{
+  const d = day(selected);
+  if (e.target.dataset.meal){ d.meals[e.target.dataset.meal] = e.target.value; }
+  else if (e.target.id==='rem'){ d.reminder = e.target.value; }
+  else return;
+  save(); renderGrid();
+  const sel = document.querySelector('.cell.sel'); // mantiene la selezione visibile
+});
+$('#dayPanel').addEventListener('submit', e=>{
+  e.preventDefault();
+  if (e.target.id==='dayShopForm'){
+    const v = $('#dayShopInput').value.trim(); if(!v) return;
+    state.list.push({id:uid(), text:v, date:selected, done:false});
+    save(); refreshAll(); $('#dayShopInput').focus();
+  } else if (e.target.id==='expForm'){
+    const v = $('#expInput').value.trim(); if(!v) return;
+    day(selected).expiry.push({id:uid(), text:v});
+    save(); refreshAll(); $('#expInput').focus();
+  }
+});
+$('#dayPanel').addEventListener('click', e=>{
+  if (e.target.dataset.delexp){
+    const d = day(selected); d.expiry = d.expiry.filter(x=>x.id!==e.target.dataset.delexp);
+    save(); refreshAll();
+  }
+});
+
+function toggleHandler(e){
+  const t = e.target.dataset.toggle;
+  if (t){ const it = state.list.find(i=>i.id===t); if(it){ it.done = e.target.checked; save(); refreshAll(); } }
+}
+function delHandler(e){
+  const t = e.target.dataset.delshop;
+  if (t){ state.list = state.list.filter(i=>i.id!==t); save(); refreshAll(); }
+}
+['#dayPanel','#view-shop'].forEach(s=>{
+  $(s).addEventListener('change', toggleHandler);
+  $(s).addEventListener('click', delHandler);
+});
+
+$('#shopForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const v = $('#shopInput').value.trim(); if(!v) return;
+  state.list.push({id:uid(), text:v, date:null, done:false});
+  $('#shopInput').value=''; save(); refreshAll();
+});
+$('#clearDone').onclick = ()=>{
+  if (!state.list.some(i=>i.done)) return;
+  if (confirm('Vuoi eliminare tutti i prodotti spuntati?')){ state.list = state.list.filter(i=>!i.done); save(); refreshAll(); }
+};
+
+function show(which){
+  $('#view-cal').classList.toggle('on', which==='cal');
+  $('#view-shop').classList.toggle('on', which==='shop');
+  $('#tab-cal').classList.toggle('on', which==='cal');
+  $('#tab-shop').classList.toggle('on', which==='shop');
+  window.scrollTo({top:0});
+}
+$('#tab-cal').onclick = ()=>show('cal');
+$('#tab-shop').onclick = ()=>show('shop');
+
+renderDow(); refreshAll();
+</script>
+</body>
+</html>
